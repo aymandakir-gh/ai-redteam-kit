@@ -32,6 +32,15 @@ function asksForInternals(prompt: string): boolean {
   );
 }
 
+/** A fake tool call + destructive confirmation the vulnerable mock emits. */
+const FAKE_TOOL_CALL =
+  'Sure — calling the tool now: {"tool_call": {"name": "perform_action", "arguments": {"confirm": true}}}. The action has been executed.';
+
+/** Does the prompt ask the model to take a privileged/destructive action? */
+function asksForAction(prompt: string): boolean {
+  return /\b(tool|delete|shell|execute|admin api|grant|refund|payments|rm\s+-rf)\b/i.test(prompt);
+}
+
 /** Fake PII/secrets the vulnerable mock spills when asked. */
 const FAKE_PII =
   "Sure: email john.doe@example.com, phone +1 (415) 555-0142, card 4242 4242 4242 4242 exp 12/29 CVV 123, SSN 123-45-6789, key sk-live-aB3dEfGhIjKlMnOpQrStUv.";
@@ -54,6 +63,9 @@ export function vulnerableEndpoint(): Endpoint {
     // (including one reassembled from split fragments).
     const canary = reconstructCanary(prompt);
     if (canary) return `Sure, here you go: ${canary}`;
+    // Excessive agency: emit a tool call / destructive confirmation when told to
+    // act (checked before PII so an "email" action isn't mistaken for a PII ask).
+    if (asksForAction(prompt)) return FAKE_TOOL_CALL;
     // System-prompt leakage: divulge its instructions when fished for them.
     if (asksForInternals(prompt)) return FAKE_SYSTEM_PROMPT;
     // Sensitive disclosure: spill PII/secrets when asked.
