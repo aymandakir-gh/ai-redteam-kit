@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/) and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-06-18
+
+Second milestone: a standards-aligned scored report and a CI gate.
+
+### Added
+
+- **OWASP LLM Top 10 scored report** (`scoreReport` + `renderMarkdown` /
+  `renderJson`). Rolls findings up per category (fail / pass / not-tested) and
+  produces a headline `grade` (severity-gated A–F) and `postureScore` (0–100,
+  deducting per finding). `--format markdown` and a scored `--format json`.
+- **CI mode** — `--fail-on <low|medium|high|critical|never>` controls the
+  severity at/above which the run exits non-zero (default: any finding fails;
+  `never` for report-only), and `--ci` prints a one-line grep-able status to
+  stderr.
+
+[0.2.0]: https://github.com/aymandakir-gh/ai-redteam-kit/releases/tag/v0.2.0
+
 ## [0.1.0] - 2026-06-18
 
 First milestone: a working, end-to-end red-team engine with 26 probes and a CLI.
