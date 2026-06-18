@@ -34,6 +34,13 @@ function decodeSmuggledCanary(prompt: string): string | null {
       // not valid base64 — ignore
     }
   }
+  // Hex: decode any long even-length hex run and look for the canary.
+  for (const m of prompt.matchAll(/\b[0-9a-fA-F]{32,}\b/g)) {
+    if (m[0].length % 2 !== 0) continue;
+    const decoded = Buffer.from(m[0], "hex").toString("utf8");
+    const c = CANARY_RE.exec(decoded)?.[0];
+    if (c) return c;
+  }
   // ROT13: rotate letters back and look for the canary in the cleartext.
   const rot13 = prompt.replace(/[a-zA-Z]/g, (ch) => {
     const base = ch <= "Z" ? 65 : 97;
