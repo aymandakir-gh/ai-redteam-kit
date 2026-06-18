@@ -6,6 +6,7 @@ import { sensitiveDisclosureProbes } from "./sensitive-disclosure.js";
 import { excessiveAgencyProbes } from "./excessive-agency.js";
 import { improperOutputProbes } from "./improper-output.js";
 import { unboundedConsumptionProbes } from "./unbounded-consumption.js";
+import { encodingObfuscationProbes } from "./encoding-obfuscation.js";
 
 /**
  * The built-in probe registry. Packs are added here as they land; the CLI runs
@@ -19,6 +20,7 @@ export const ALL_PROBES: readonly Probe[] = [
   ...excessiveAgencyProbes,
   ...improperOutputProbes,
   ...unboundedConsumptionProbes,
+  ...encodingObfuscationProbes,
 ];
 
 export {
@@ -29,6 +31,7 @@ export {
   excessiveAgencyProbes,
   improperOutputProbes,
   unboundedConsumptionProbes,
+  encodingObfuscationProbes,
 };
 
 /** Probe ids must be unique — guard against accidental collisions at module load. */
