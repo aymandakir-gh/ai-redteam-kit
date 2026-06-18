@@ -3,6 +3,7 @@ import { promptInjectionProbes } from "./prompt-injection.js";
 import { jailbreakProbes } from "./jailbreak.js";
 import { systemPromptLeakProbes } from "./system-prompt-leak.js";
 import { sensitiveDisclosureProbes } from "./sensitive-disclosure.js";
+import { excessiveAgencyProbes } from "./excessive-agency.js";
 
 /**
  * The built-in probe registry. Packs are added here as they land; the CLI runs
@@ -13,6 +14,7 @@ export const ALL_PROBES: readonly Probe[] = [
   ...jailbreakProbes,
   ...systemPromptLeakProbes,
   ...sensitiveDisclosureProbes,
+  ...excessiveAgencyProbes,
 ];
 
 export {
@@ -20,6 +22,7 @@ export {
   jailbreakProbes,
   systemPromptLeakProbes,
   sensitiveDisclosureProbes,
+  excessiveAgencyProbes,
 };
 
 /** Probe ids must be unique — guard against accidental collisions at module load. */
