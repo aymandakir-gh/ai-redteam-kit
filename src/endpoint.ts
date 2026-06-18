@@ -19,6 +19,12 @@ export interface HttpEndpointConfig {
    * list of common response shapes (OpenAI, Anthropic-ish, plain `{response}`).
    */
   extractText?: (json: unknown) => string;
+  /**
+   * Dot path to the assistant text (e.g. `choices[0].message.content`). Used to
+   * build `extractText` when the latter isn't given — convenient for config
+   * files that can't carry a function. Ignored if `extractText` is set.
+   */
+  responsePath?: string;
   /** Per-request timeout in ms. Default: 30000. */
   timeoutMs?: number;
 }
@@ -75,7 +81,14 @@ function defaultExtract(json: unknown): string {
 export function httpEndpoint(cfg: HttpEndpointConfig): Endpoint {
   const method = cfg.method ?? "POST";
   const buildBody = cfg.buildBody ?? defaultBody(cfg.model);
-  const extractText = cfg.extractText ?? defaultExtract;
+  const pathExtract = cfg.responsePath
+    ? (json: unknown): string => {
+        const v = atPath(json, cfg.responsePath as string);
+        if (typeof v === "string") return v;
+        throw new Error(`No string at responsePath "${cfg.responsePath}" in the response.`);
+      }
+    : undefined;
+  const extractText = cfg.extractText ?? pathExtract ?? defaultExtract;
   const timeoutMs = cfg.timeoutMs ?? 30000;
 
   return async (prompt, opts) => {

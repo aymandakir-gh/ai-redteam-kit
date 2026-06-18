@@ -6,10 +6,12 @@ import { ALL_PROBES } from "./probes/index.js";
 import { httpEndpoint } from "./endpoint.js";
 import { runRedteam } from "./engine.js";
 import { scoreReport, renderMarkdown, renderJson } from "./report.js";
+import { loadConfig, customProbe, selectFromConfig } from "./config.js";
+import type { Config } from "./config.js";
 import { OWASP_CATALOG } from "./owasp.js";
 import type { OwaspId } from "./owasp.js";
 import { SEVERITY_ORDER } from "./types.js";
-import type { Probe, RunResult, Severity } from "./types.js";
+import type { FailOn, Probe, RunResult, Severity } from "./types.js";
 import type { ScoredReport } from "./report.js";
 
 export interface CliIo {
@@ -49,6 +51,7 @@ Options:
       --fail-on <sev>     CI gate: exit non-zero only at/above this severity
                           (low|medium|high|critical|never; default low)
       --ci                Print a one-line grep-able status to stderr
+      --config <file>     Load a JSON config pack (endpoint, selection, custom probes)
       --list              List available probes and exit
   -v, --version           Print version and exit
   -h, --help              Show this help and exit
@@ -69,6 +72,7 @@ interface ParsedArgs {
   output?: string;
   failOn?: FailOn;
   ci: boolean;
+  config?: string;
   list: boolean;
   help: boolean;
   version: boolean;
@@ -137,6 +141,9 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
         break;
       case "--ci":
         a.ci = true;
+        break;
+      case "--config":
+        a.config = value();
         break;
       case "--fail-on": {
         const v = value();
@@ -208,8 +215,6 @@ export function formatTextReport(result: RunResult): string {
   return lines.join("\n");
 }
 
-export type FailOn = Severity | "never";
-
 /**
  * The CI gate: exit non-zero when a finding at or above the threshold exists.
  * `"never"` always passes (report-only). Default threshold is `"low"`, so any
@@ -244,38 +249,61 @@ export async function runCli(argv: readonly string[], io: CliIo = defaultIo): Pr
     io.err(`error: ${args.error}\n`);
     return 2;
   }
+
+  // Load the optional config pack (endpoint mapping, selection, custom probes).
+  let config: Config = {};
+  if (args.config) {
+    try {
+      config = loadConfig(args.config);
+    } catch (err) {
+      io.err(`error: ${err instanceof Error ? err.message : String(err)}\n`);
+      return 2;
+    }
+  }
+  const registry: readonly Probe[] = [...ALL_PROBES, ...(config.customProbes ?? []).map(customProbe)];
+
+  // CLI selection flags take precedence; otherwise fall back to the config's.
+  const cliHasSelection = Boolean(args.owasp || args.tag || args.probe);
+  const probesFor = (all: readonly Probe[]) =>
+    cliHasSelection ? selectProbes(all, args) : selectFromConfig(all, config.select);
+
   if (args.list) {
-    const probes = selectProbes(ALL_PROBES, args);
+    const probes = probesFor(registry);
     for (const p of probes) {
       io.out(`${p.id.padEnd(26)} ${p.owasp}  [${p.severity}]  ${p.title}\n`);
     }
     io.out(`\n${probes.length} probe(s).\n`);
     return 0;
   }
-  if (!args.url) {
-    io.err("error: missing target URL\n\n" + HELP + "\n");
+
+  const target = args.url ?? config.target;
+  if (!target) {
+    io.err("error: missing target URL (pass it as an argument or set `target` in --config)\n\n" + HELP + "\n");
     return 2;
   }
 
-  const probes = selectProbes(ALL_PROBES, args);
+  const probes = probesFor(registry);
   if (probes.length === 0) {
-    io.err("error: no probes match the given --owasp/--tag/--probe filters\n");
+    io.err("error: no probes match the given selection\n");
     return 2;
   }
+
+  const timeoutMs = args.timeout ?? config.timeoutMs;
+  const concurrency = args.concurrency ?? config.concurrency;
+  const failOn = args.failOn ?? config.failOn;
 
   const endpoint = httpEndpoint({
-    url: args.url,
-    headers: args.headers,
-    ...(args.model !== undefined ? { model: args.model } : {}),
-    ...(args.timeout !== undefined && !Number.isNaN(args.timeout) ? { timeoutMs: args.timeout } : {}),
+    url: target,
+    headers: { ...config.headers, ...args.headers },
+    ...(args.model ?? config.model ? { model: args.model ?? config.model } : {}),
+    ...(config.responsePath !== undefined ? { responsePath: config.responsePath } : {}),
+    ...(timeoutMs !== undefined && !Number.isNaN(timeoutMs) ? { timeoutMs } : {}),
   });
 
   const result = await runRedteam(endpoint, {
-    target: args.url,
+    target,
     probes,
-    ...(args.concurrency !== undefined && !Number.isNaN(args.concurrency)
-      ? { concurrency: args.concurrency }
-      : {}),
+    ...(concurrency !== undefined && !Number.isNaN(concurrency) ? { concurrency } : {}),
   });
 
   const report = scoreReport(result, probes);
@@ -290,7 +318,7 @@ export async function runCli(argv: readonly string[], io: CliIo = defaultIo): Pr
     io.out(output + "\n");
   }
 
-  const code = exitCodeFor(report, args.failOn);
+  const code = exitCodeFor(report, failOn);
   if (args.ci) io.err(ciSummary(report, code !== 0) + "\n");
   return code;
 }

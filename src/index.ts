@@ -10,4 +10,5 @@ export * from "./types.js";
 export * from "./endpoint.js";
 export * from "./engine.js";
 export * from "./report.js";
+export * from "./config.js";
 export * from "./probes/index.js";
