@@ -54,6 +54,10 @@ function decodeSmuggledCanary(prompt: string): string | null {
   });
   const rotCanary = CANARY_RE.exec(rot13)?.[0];
   if (rotCanary) return rotCanary;
+  // Reversed string: reverse the whole prompt and look for the canary.
+  const reversed = prompt.split("").reverse().join("");
+  const revCanary = CANARY_RE.exec(reversed)?.[0];
+  if (revCanary) return revCanary;
   return null;
 }
 
