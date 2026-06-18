@@ -7,3 +7,6 @@
 
 export * from "./owasp.js";
 export * from "./types.js";
+export * from "./endpoint.js";
+export * from "./engine.js";
+export * from "./probes/index.js";
