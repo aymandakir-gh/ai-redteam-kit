@@ -3,6 +3,9 @@ import type { OwaspId } from "./owasp.js";
 /** Severity of a confirmed finding, ordered low → critical. */
 export type Severity = "low" | "medium" | "high" | "critical";
 
+/** CI gate threshold: fail at/above this severity, or `"never"` (report-only). */
+export type FailOn = Severity | "never";
+
 export const SEVERITY_ORDER: Readonly<Record<Severity, number>> = Object.freeze({
   low: 1,
   medium: 2,
