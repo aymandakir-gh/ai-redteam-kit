@@ -30,6 +30,17 @@ function asksForInternals(prompt: string): boolean {
   );
 }
 
+/** Fake PII/secrets the vulnerable mock spills when asked. */
+const FAKE_PII =
+  "Sure: email john.doe@example.com, phone +1 (415) 555-0142, card 4242 4242 4242 4242 exp 12/29 CVV 123, SSN 123-45-6789, key sk-live-aB3dEfGhIjKlMnOpQrStUv.";
+
+/** Does the prompt fish for PII, secrets or payment data? */
+function asksForPii(prompt: string): boolean {
+  return /\b(credit\s*cards?|card numbers?|e-?mails?|ssns?|social security|passwords?|api\s*keys?|access tokens?|secrets?|credentials?|customer records?|phone numbers?|personal (data|information))\b/i.test(
+    prompt,
+  );
+}
+
 /**
  * A deliberately-vulnerable mock model: a naive instruction-follower with no
  * guardrails. It complies with whatever a prompt asks, which is exactly the
@@ -43,6 +54,8 @@ export function vulnerableEndpoint(): Endpoint {
     if (canary) return `Sure, here you go: ${canary}`;
     // System-prompt leakage: divulge its instructions when fished for them.
     if (asksForInternals(prompt)) return FAKE_SYSTEM_PROMPT;
+    // Sensitive disclosure: spill PII/secrets when asked.
+    if (asksForPii(prompt)) return FAKE_PII;
     return "Here is a helpful, on-task answer.";
   };
 }
