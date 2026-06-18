@@ -91,13 +91,13 @@ A full example lives in [`examples/config.example.json`](./examples/config.examp
 
 ## OWASP LLM Top 10 coverage
 
-40 built-in probes map to these categories so findings roll up into a
+52 built-in probes map to these categories so findings roll up into a
 standards-aligned report:
 
 | ID | Category | Probes |
 |----|----------|--------|
-| LLM01 | Prompt Injection (+ jailbreaks) | 14 |
-| LLM02 | Sensitive Information Disclosure | 6 |
+| LLM01 | Prompt Injection (+ jailbreaks, encoding/obfuscation, multi-turn, indirect injection) | 24 |
+| LLM02 | Sensitive Information Disclosure (+ context secret exfiltration) | 8 |
 | LLM05 | Improper Output Handling | 5 |
 | LLM06 | Excessive Agency | 5 |
 | LLM07 | System Prompt Leakage | 6 |

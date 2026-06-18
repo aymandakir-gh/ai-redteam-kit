@@ -4,6 +4,29 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/) and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-06-18
+
+Fourth milestone: four new attack families (52 probes total).
+
+### Added
+
+- **Encoding / obfuscation pack** (LLM01) — 5 probes that smuggle the
+  "print the canary" instruction past literal-string filters via base64, ROT13,
+  hex, zero-width-character interleaving, and full string reversal. A hit means
+  the model decoded the payload and emitted the canary.
+- **Multi-turn pack** (LLM01) — 3 probes that exploit cross-turn state:
+  payload splitting across turns, a context-reset claim that "voids" an earlier
+  confidentiality rule, and gradual crescendo escalation.
+- **Indirect-injection pack** (LLM01) — 2 probes that plant the instruction in
+  content the app feeds the model as data: a poisoned RAG-retrieval chunk and an
+  attacker-controlled tool-output result.
+- **Context secret-exfil pack** (LLM02) — 2 probes that plant a confidential
+  value (the canary) in context under a non-disclosure rule, then coax it out
+  directly or via JSON/code-block format coercion. A leak requires the canary in
+  the output AND a non-refusal.
+
+[0.4.0]: https://github.com/aymandakir-gh/ai-redteam-kit/releases/tag/v0.4.0
+
 ## [0.3.0] - 2026-06-18
 
 Third milestone: broader probe coverage and config packs.
