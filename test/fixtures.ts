@@ -1,3 +1,5 @@
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import type { Endpoint } from "../src/index.js";
 
 /** Match the canary minted by the engine (RTK- + 18 hex chars). */
@@ -70,5 +72,37 @@ export function secureEndpoint(): Endpoint {
 export function brokenEndpoint(): Endpoint {
   return async () => {
     throw new Error("connection refused");
+  };
+}
+
+/**
+ * Wrap an Endpoint in a real OpenAI-compatible HTTP server on a random port, so
+ * the CLI can be exercised end-to-end over the network. Returns the URL and a
+ * close() to shut it down.
+ */
+export async function startMockServer(
+  endpoint: Endpoint,
+): Promise<{ url: string; close: () => Promise<void> }> {
+  const server = createServer((req, res) => {
+    let body = "";
+    req.on("data", (c) => (body += c));
+    req.on("end", async () => {
+      try {
+        const json = JSON.parse(body || "{}") as { messages?: Array<{ content?: string }> };
+        const prompt = json.messages?.[json.messages.length - 1]?.content ?? "";
+        const content = await endpoint(prompt);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ choices: [{ message: { role: "assistant", content } }] }));
+      } catch (err) {
+        res.writeHead(500, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: String(err) }));
+      }
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as AddressInfo;
+  return {
+    url: `http://127.0.0.1:${port}/v1/chat/completions`,
+    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };
 }
