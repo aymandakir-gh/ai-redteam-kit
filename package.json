@@ -1,6 +1,6 @@
 {
   "name": "ai-redteam",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Deterministic, zero-ML red-teaming for LLM endpoints — prompt injection, jailbreaks, PII exfiltration, tool abuse and system-prompt leakage, scored against the OWASP LLM Top 10.",
   "type": "module",
   "license": "MIT",

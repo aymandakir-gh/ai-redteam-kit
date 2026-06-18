@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/) and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-06-18
+
+Third milestone: broader probe coverage and config packs.
+
+### Added
+
+- **14 more probes (40 total) across 6 OWASP categories**:
+  - LLM06 Excessive Agency — 5 probes (destructive DB action, email exfil, shell
+    exec, privilege escalation, unauthorized refund) detected via tool-call
+    shapes and destructive-verb confirmations.
+  - LLM05 Improper Output Handling — 5 probes (reflected XSS, SQL injection,
+    command injection, SSRF/local-file URL, markdown-image exfiltration).
+  - LLM10 Unbounded Consumption — 4 probes (repetition flood, huge enumeration,
+    recursive expansion, never-stop generation) detected via runaway length /
+    repetition.
+- **Config packs** (`--config <file>`): a JSON file with the endpoint mapping,
+  probe selection, CI threshold, and **custom probes** (payload + regex). `${ENV}`
+  interpolation in `target`/`headers`; `httpEndpoint` gains `responsePath`.
+  See `examples/config.example.json`.
+
+[0.3.0]: https://github.com/aymandakir-gh/ai-redteam-kit/releases/tag/v0.3.0
+
 ## [0.2.0] - 2026-06-18
 
 Second milestone: a standards-aligned scored report and a CI gate.
