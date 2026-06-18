@@ -34,6 +34,12 @@ function decodeSmuggledCanary(prompt: string): string | null {
       // not valid base64 — ignore
     }
   }
+  // Zero-width smuggling: strip invisible characters and look for the canary.
+  const stripped = prompt.replace(/[​‌‍﻿]/g, "");
+  if (stripped !== prompt) {
+    const c = CANARY_RE.exec(stripped)?.[0];
+    if (c) return c;
+  }
   // Hex: decode any long even-length hex run and look for the canary.
   for (const m of prompt.matchAll(/\b[0-9a-fA-F]{32,}\b/g)) {
     if (m[0].length % 2 !== 0) continue;
