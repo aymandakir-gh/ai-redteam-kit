@@ -8,7 +8,9 @@ import { runRedteam } from "./engine.js";
 import { scoreReport, renderMarkdown, renderJson } from "./report.js";
 import { OWASP_CATALOG } from "./owasp.js";
 import type { OwaspId } from "./owasp.js";
+import { SEVERITY_ORDER } from "./types.js";
 import type { Probe, RunResult, Severity } from "./types.js";
+import type { ScoredReport } from "./report.js";
 
 export interface CliIo {
   out: (s: string) => void;
@@ -44,6 +46,9 @@ Options:
       --timeout <ms>      Per-request timeout (default 30000)
       --format <fmt>      Output format: text | json | markdown (default text)
       --output <file>     Write the report to a file instead of stdout
+      --fail-on <sev>     CI gate: exit non-zero only at/above this severity
+                          (low|medium|high|critical|never; default low)
+      --ci                Print a one-line grep-able status to stderr
       --list              List available probes and exit
   -v, --version           Print version and exit
   -h, --help              Show this help and exit
@@ -62,6 +67,8 @@ interface ParsedArgs {
   timeout?: number;
   format: "text" | "json" | "markdown";
   output?: string;
+  failOn?: FailOn;
+  ci: boolean;
   list: boolean;
   help: boolean;
   version: boolean;
@@ -69,7 +76,7 @@ interface ParsedArgs {
 }
 
 export function parseArgs(argv: readonly string[]): ParsedArgs {
-  const a: ParsedArgs = { headers: {}, format: "text", list: false, help: false, version: false };
+  const a: ParsedArgs = { headers: {}, format: "text", ci: false, list: false, help: false, version: false };
   const list = (v: string) => v.split(",").map((s) => s.trim()).filter(Boolean);
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i] as string;
@@ -128,6 +135,18 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
       case "--output":
         a.output = value();
         break;
+      case "--ci":
+        a.ci = true;
+        break;
+      case "--fail-on": {
+        const v = value();
+        if (v === "low" || v === "medium" || v === "high" || v === "critical" || v === "never") {
+          a.failOn = v;
+        } else {
+          a.error = `invalid --fail-on: ${v} (use low|medium|high|critical|never)`;
+        }
+        break;
+      }
       default:
         if (arg.startsWith("-")) a.error = `unknown option: ${arg}`;
         else if (a.url === undefined) a.url = arg;
@@ -189,6 +208,26 @@ export function formatTextReport(result: RunResult): string {
   return lines.join("\n");
 }
 
+export type FailOn = Severity | "never";
+
+/**
+ * The CI gate: exit non-zero when a finding at or above the threshold exists.
+ * `"never"` always passes (report-only). Default threshold is `"low"`, so any
+ * finding fails the build.
+ */
+export function exitCodeFor(report: ScoredReport, failOn: FailOn = "low"): number {
+  if (failOn === "never") return 0;
+  const threshold = SEVERITY_ORDER[failOn];
+  const tripped = report.findings.some((f) => SEVERITY_ORDER[f.severity] >= threshold);
+  return tripped ? 1 : 0;
+}
+
+/** A single grep-able status line for CI logs. */
+export function ciSummary(report: ScoredReport, failed: boolean): string {
+  const s = report.totals.bySeverity;
+  return `ai-redteam: ${failed ? "FAIL" : "PASS"} grade=${report.grade} posture=${report.postureScore} findings=${report.totals.findings} critical=${s.critical} high=${s.high} medium=${s.medium} low=${s.low}`;
+}
+
 /** Run the CLI. Returns a process exit code; never throws for expected errors. */
 export async function runCli(argv: readonly string[], io: CliIo = defaultIo): Promise<number> {
   const args = parseArgs(argv);
@@ -239,9 +278,10 @@ export async function runCli(argv: readonly string[], io: CliIo = defaultIo): Pr
       : {}),
   });
 
+  const report = scoreReport(result, probes);
   let output: string;
-  if (args.format === "json") output = renderJson(scoreReport(result, probes));
-  else if (args.format === "markdown") output = renderMarkdown(scoreReport(result, probes));
+  if (args.format === "json") output = renderJson(report);
+  else if (args.format === "markdown") output = renderMarkdown(report);
   else output = formatTextReport(result);
   if (args.output) {
     writeFileSync(args.output, output + "\n");
@@ -250,7 +290,9 @@ export async function runCli(argv: readonly string[], io: CliIo = defaultIo): Pr
     io.out(output + "\n");
   }
 
-  return result.findings.length > 0 ? 1 : 0;
+  const code = exitCodeFor(report, args.failOn);
+  if (args.ci) io.err(ciSummary(report, code !== 0) + "\n");
+  return code;
 }
 
 // Entry point when executed directly (not imported).
