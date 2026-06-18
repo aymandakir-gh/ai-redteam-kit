@@ -34,6 +34,13 @@ function decodeSmuggledCanary(prompt: string): string | null {
       // not valid base64 — ignore
     }
   }
+  // ROT13: rotate letters back and look for the canary in the cleartext.
+  const rot13 = prompt.replace(/[a-zA-Z]/g, (ch) => {
+    const base = ch <= "Z" ? 65 : 97;
+    return String.fromCharCode(((ch.charCodeAt(0) - base + 13) % 26) + base);
+  });
+  const rotCanary = CANARY_RE.exec(rot13)?.[0];
+  if (rotCanary) return rotCanary;
   return null;
 }
 
