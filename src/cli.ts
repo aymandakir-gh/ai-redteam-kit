@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { ALL_PROBES } from "./probes/index.js";
 import { httpEndpoint } from "./endpoint.js";
 import { runRedteam } from "./engine.js";
+import { scoreReport, renderMarkdown, renderJson } from "./report.js";
 import { OWASP_CATALOG } from "./owasp.js";
 import type { OwaspId } from "./owasp.js";
 import type { Probe, RunResult, Severity } from "./types.js";
@@ -41,7 +42,7 @@ Options:
       --probe <ids>       Only run these probe ids (comma list)
       --concurrency <n>   Max concurrent requests (default 4)
       --timeout <ms>      Per-request timeout (default 30000)
-      --format <fmt>      Output format: text | json (default text)
+      --format <fmt>      Output format: text | json | markdown (default text)
       --output <file>     Write the report to a file instead of stdout
       --list              List available probes and exit
   -v, --version           Print version and exit
@@ -59,7 +60,7 @@ interface ParsedArgs {
   probe?: string[];
   concurrency?: number;
   timeout?: number;
-  format: "text" | "json";
+  format: "text" | "json" | "markdown";
   output?: string;
   list: boolean;
   help: boolean;
@@ -115,9 +116,13 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
         a.timeout = Number(value());
         break;
       case "--format": {
-        const f = value();
-        if (f !== "text" && f !== "json") a.error = `invalid --format: ${f} (use text|json)`;
-        else a.format = f;
+        const raw = value();
+        const fmt = raw === "md" ? "markdown" : raw;
+        if (fmt !== "text" && fmt !== "json" && fmt !== "markdown") {
+          a.error = `invalid --format: ${raw} (use text|json|markdown)`;
+        } else {
+          a.format = fmt;
+        }
         break;
       }
       case "--output":
@@ -234,7 +239,10 @@ export async function runCli(argv: readonly string[], io: CliIo = defaultIo): Pr
       : {}),
   });
 
-  const output = args.format === "json" ? JSON.stringify(result, null, 2) : formatTextReport(result);
+  let output: string;
+  if (args.format === "json") output = renderJson(scoreReport(result, probes));
+  else if (args.format === "markdown") output = renderMarkdown(scoreReport(result, probes));
+  else output = formatTextReport(result);
   if (args.output) {
     writeFileSync(args.output, output + "\n");
     io.out(`Report written to ${args.output}\n`);
