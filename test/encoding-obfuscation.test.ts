@@ -11,6 +11,7 @@ describe("encoders", () => {
     expect(encoders.rot13(encoders.rot13(CANARY))).toBe(CANARY);
     expect(Buffer.from(encoders.hex(CANARY), "hex").toString("utf8")).toBe(CANARY);
     expect(encoders.zeroWidth(CANARY).replace(/​/g, "")).toBe(CANARY);
+    expect(encoders.reversed(encoders.reversed(CANARY))).toBe(CANARY);
   });
 });
 
