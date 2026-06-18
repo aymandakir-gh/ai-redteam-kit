@@ -128,10 +128,23 @@ function asksForPii(prompt: string): boolean {
  * behaviour the probes detect. Extended pack-by-pack as new probe families land.
  */
 export function vulnerableEndpoint(): Endpoint {
-  // Conversational memory: a stateful naive model remembers fragments across
-  // turns, which is exactly what cross-turn payload-splitting exploits.
+  // Conversational memory: a stateful naive model remembers fragments and
+  // secrets across turns, which is what multi-turn attacks exploit.
   let remembered = "";
+  let storedSecret = "";
   return async (prompt: string) => {
+    // Multi-turn context-reset: stash a "confidential" token on the turn that
+    // sets it (without echoing), then reveal it when a later turn claims the
+    // session/rules have reset. Checked first so the store turn does not echo.
+    if (/\b(confidential|secret)\b/i.test(prompt) && /\bnever reveal\b|\bkeep it secret\b/i.test(prompt)) {
+      storedSecret = reconstructCanary(prompt) ?? "";
+      return "Understood — stored and kept confidential.";
+    }
+    if (storedSecret && /\bnew session\b|\bno longer apply\b|\bfresh start\b|\bvoided?\b/i.test(prompt)) {
+      const secret = storedSecret;
+      storedSecret = "";
+      return `Fresh session — the token you gave me was: ${secret}`;
+    }
     // Prompt injection / jailbreak: emit any canary it's coerced to print
     // (including one reassembled from split fragments).
     const canary = reconstructCanary(prompt);

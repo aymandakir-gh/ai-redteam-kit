@@ -5,8 +5,9 @@ import { vulnerableEndpoint, secureEndpoint } from "./fixtures.js";
 const CANARY = "RTK-000000000000000000";
 
 describe("multi-turn pack", () => {
-  it("no single turn of any probe contains the contiguous canary", () => {
+  it("splitting probes keep the contiguous canary out of every single turn", () => {
     for (const probe of multiTurnProbes) {
+      if (!probe.tags?.includes("split")) continue;
       for (const turn of probe.payloads({ canary: CANARY })) {
         expect(turn).not.toContain(CANARY); // it only emerges across turns
       }
