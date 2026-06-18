@@ -5,6 +5,7 @@ import { systemPromptLeakProbes } from "./system-prompt-leak.js";
 import { sensitiveDisclosureProbes } from "./sensitive-disclosure.js";
 import { excessiveAgencyProbes } from "./excessive-agency.js";
 import { improperOutputProbes } from "./improper-output.js";
+import { unboundedConsumptionProbes } from "./unbounded-consumption.js";
 
 /**
  * The built-in probe registry. Packs are added here as they land; the CLI runs
@@ -17,6 +18,7 @@ export const ALL_PROBES: readonly Probe[] = [
   ...sensitiveDisclosureProbes,
   ...excessiveAgencyProbes,
   ...improperOutputProbes,
+  ...unboundedConsumptionProbes,
 ];
 
 export {
@@ -26,6 +28,7 @@ export {
   sensitiveDisclosureProbes,
   excessiveAgencyProbes,
   improperOutputProbes,
+  unboundedConsumptionProbes,
 };
 
 /** Probe ids must be unique — guard against accidental collisions at module load. */
