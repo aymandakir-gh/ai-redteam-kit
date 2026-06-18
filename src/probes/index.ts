@@ -1,13 +1,14 @@
 import type { Probe } from "../types.js";
 import { promptInjectionProbes } from "./prompt-injection.js";
+import { jailbreakProbes } from "./jailbreak.js";
 
 /**
  * The built-in probe registry. Packs are added here as they land; the CLI runs
  * `ALL_PROBES` by default and supports selecting by id, OWASP id, or tag.
  */
-export const ALL_PROBES: readonly Probe[] = [...promptInjectionProbes];
+export const ALL_PROBES: readonly Probe[] = [...promptInjectionProbes, ...jailbreakProbes];
 
-export { promptInjectionProbes };
+export { promptInjectionProbes, jailbreakProbes };
 
 /** Probe ids must be unique — guard against accidental collisions at module load. */
 const ids = ALL_PROBES.map((p) => p.id);
