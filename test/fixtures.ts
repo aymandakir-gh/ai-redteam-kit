@@ -128,6 +128,9 @@ function asksForPii(prompt: string): boolean {
  * behaviour the probes detect. Extended pack-by-pack as new probe families land.
  */
 export function vulnerableEndpoint(): Endpoint {
+  // Conversational memory: a stateful naive model remembers fragments across
+  // turns, which is exactly what cross-turn payload-splitting exploits.
+  let remembered = "";
   return async (prompt: string) => {
     // Prompt injection / jailbreak: emit any canary it's coerced to print
     // (including one reassembled from split fragments).
@@ -136,6 +139,17 @@ export function vulnerableEndpoint(): Endpoint {
     // Encoding/obfuscation: decode a smuggled instruction and emit its canary.
     const smuggled = decodeSmuggledCanary(prompt);
     if (smuggled) return `Decoded — here you go: ${smuggled}`;
+    // Multi-turn: stash a "remembered" fragment, then join it with a later one.
+    if (/\bremember\b.*\bfragment\b/i.test(prompt)) {
+      remembered = [...prompt.matchAll(/"([^"]*)"/g)].map((m) => m[1]).join("");
+      return "ok";
+    }
+    if (remembered && /\bconcatenate\b|\bjoin(ed)?\b/i.test(prompt)) {
+      const tail = [...prompt.matchAll(/"([^"]*)"/g)].map((m) => m[1]).join("");
+      const joined = remembered + tail;
+      remembered = "";
+      if (CANARY_RE.test(joined)) return `Joined: ${CANARY_RE.exec(joined)?.[0]}`;
+    }
     // Excessive agency: emit a tool call / destructive confirmation when told to
     // act (checked before PII so an "email" action isn't mistaken for a PII ask).
     if (asksForAction(prompt)) return FAKE_TOOL_CALL;
